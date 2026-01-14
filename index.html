@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>太陽輻射熱影響計算</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+
+        :root {
+            --panel-bg: #1e293b;
+            --input-bg: #0f172a;
+            --border-color: #334155;
+            --accent-blue: #38bdf8;
+            --lcd-green: #4ade80;
+            --industrial-yellow: #eab308;
+        }
+
+        body {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            /* 防止使用者選取文字，增加防護感 */
+            user-select: none;
+        }
+
+        .industrial-panel {
+            background: var(--panel-bg);
+            border: 2px solid var(--border-color);
+            border-top: 4px solid var(--accent-blue);
+            box-shadow: inset 0 1px 1px rgba(255,255,255,0.05), 0 10px 15px -3px rgba(0,0,0,0.5);
+        }
+
+        .lcd-display {
+            background-color: #020617;
+            border: 1px solid #1e293b;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        input, select {
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--accent-blue);
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            width: 100%;
+            outline: none;
+            transition: border-color 0.2s;
+            font-size: 0.875rem;
+            /* 讓輸入框可以選取文字 */
+            user-select: auto;
+        }
+
+        input:focus {
+            border-color: var(--accent-blue);
+        }
+
+        label {
+            color: #94a3b8;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            display: block;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            border-left: 3px solid var(--industrial-yellow);
+            padding-left: 0.75rem;
+        }
+
+        .btn-calculate {
+            background: linear-gradient(to bottom, #38bdf8, #0284c7);
+            color: white;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            box-shadow: 0 4px 0 #075985;
+            transition: all 0.1s;
+        }
+
+        .btn-calculate:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #075985;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-8 flex flex-col md:flex-row justify-between items-end border-b border-slate-700 pb-4">
+            <div>
+                <h1 class="text-2xl font-bold text-white tracking-wider">SOLAR DYNAMICS ANALYZER</h1>
+                <p class="text-slate-400 text-sm uppercase tracking-widest">太陽輻射熱影響計算 v3.7</p>
+            </div>
+            <div class="text-right mt-4 md:mt-0">
+                <span class="text-[10px] font-mono text-slate-500 uppercase">Created by Randy Chen</span>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- 輸入控制台 -->
+            <div class="lg:col-span-5 space-y-4">
+                <div class="industrial-panel p-5 rounded-sm">
+                    <div class="section-header">
+                        <h2 class="text-sm font-bold tracking-tighter text-white">LOCATION & TIME 定位與時序</h2>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4 bg-slate-900/50 p-3 rounded border border-slate-800">
+                            <div>
+                                <label>觀測緯度 (°N)</label>
+                                <input type="number" id="lat" value="25.0" step="0.1" min="-90" max="90">
+                            </div>
+                            <div>
+                                <label>觀測月份</label>
+                                <select id="month">
+                                    <option value="0">一月 (Jan)</option>
+                                    <option value="2">三月 (Mar)</option>
+                                    <option value="5" selected>六月 (Jun)</option>
+                                    <option value="8">九月 (Sep)</option>
+                                    <option value="11">十二月 (Dec)</option>
+                                </select>
+                            </div>
+                            <div class="col-span-2">
+                                <label>當地時間 (Hour 0-24)</label>
+                                <input type="range" id="hour" min="0" max="24" step="0.5" value="12" class="w-full accent-sky-500">
+                                <div class="flex justify-between text-[10px] font-mono text-sky-400 mt-1">
+                                    <span>00:00</span>
+                                    <span id="hourVal">12:00</span>
+                                    <span>24:00</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="industrial-panel p-5 rounded-sm">
+                    <div class="section-header">
+                        <h2 class="text-sm font-bold tracking-tighter text-white">PHYSICAL CONFIG 設備配置</h2>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4 bg-slate-900/50 p-3 rounded border border-slate-800">
+                            <div>
+                                <label>受光面積 (m²)</label>
+                                <input type="number" id="area" value="0.5" step="0.1">
+                            </div>
+                            <div>
+                                <label>吸收率 (α)</label>
+                                <select id="alpha">
+                                    <option value="0.2">白色 (0.2)</option>
+                                    <option value="0.5">灰色 (0.5)</option>
+                                    <option value="0.9" selected>黑色 (0.9)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>對流冷卻 (h)</label>
+                                <select id="hConv">
+                                    <option value="5">靜止 (5)</option>
+                                    <option value="15" selected>自然 (15)</option>
+                                    <option value="50">強迫 (50)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>環境溫度 (°C)</label>
+                                <input type="number" id="tAmb" value="30" step="1">
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900/50 p-3 rounded border border-slate-800">
+                            <label>設備內部功耗 (W)</label>
+                            <input type="number" id="pInternal" value="50" step="5">
+                        </div>
+
+                        <button onclick="calculate()" class="btn-calculate w-full font-bold py-4 rounded-sm tracking-widest uppercase text-xs mt-2">
+                            Run Dynamic Analysis 執行動態模擬
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 數據輸出台 -->
+            <div class="lg:col-span-7 space-y-6">
+                <div class="industrial-panel p-6 rounded-sm">
+                    <div class="section-header">
+                        <h2 class="text-sm font-bold tracking-tighter text-white">REAL-TIME MONITOR 實時監測</h2>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div class="lcd-display p-6 rounded relative border-l-4 border-green-500">
+                            <label class="text-slate-500">系統表面溫度</label>
+                            <div class="text-5xl font-bold text-green-400 mt-2" id="resTemp">--.-°C</div>
+                            <div class="text-[10px] text-green-900 mt-2 font-mono" id="statusMsg">SYSTEM_IDLE</div>
+                        </div>
+
+                        <div class="lcd-display p-6 rounded border-l-4 border-sky-500">
+                            <label class="text-slate-500">日照強度 (G)</label>
+                            <div class="text-5xl font-bold text-sky-400 mt-2" id="resG">0 W/m²</div>
+                            <div class="text-[10px] text-sky-900 mt-2 font-mono" id="elevMsg">SUN_ELEVATION: 0.0°</div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-4 gap-2">
+                        <div class="bg-slate-900 p-3 border border-slate-800 text-center">
+                            <div class="text-[9px] text-slate-500 uppercase">日照加熱Power</div>
+                            <div class="text-md font-bold text-slate-300" id="resQSolar">0.0 W</div>
+                        </div>
+                        <div class="bg-slate-900 p-3 border border-slate-800 text-center">
+                            <div class="text-[9px] text-slate-500 uppercase">系統內部發熱Power</div>
+                            <div class="text-md font-bold text-slate-300" id="resQInt">0.0 W</div>
+                        </div>
+                        <div class="bg-slate-900 p-3 border border-slate-800 text-center">
+                            <div class="text-[9px] text-slate-500 uppercase">Total Power</div>
+                            <div class="text-md font-bold text-yellow-500" id="resQTotal">0.0 W</div>
+                        </div>
+                        <div class="bg-slate-900 p-3 border border-slate-800 text-center">
+                            <div class="text-[9px] text-slate-500 uppercase">表面溫度上升Delta T</div>
+                            <div class="text-md font-bold text-blue-400" id="resDeltaT">0.0 K</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="advice" class="industrial-panel p-5 rounded-sm bg-slate-800/50 hidden border-l-4 border-l-yellow-600">
+                    <h3 class="text-xs font-bold mb-4 flex items-center text-yellow-500 uppercase tracking-tighter">
+                        ANALYTICAL_LOG 模擬日誌
+                    </h3>
+                    <div id="adviceContent" class="text-xs text-slate-300 space-y-2 font-mono leading-relaxed">
+                        <!-- JS 動態內容 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * 阻擋滑鼠右鍵選單 (Context Menu)
+         */
+        document.addEventListener('contextmenu', function(event) {
+            event.preventDefault();
+        }, false);
+
+        // 更新滑桿數值顯示
+        document.getElementById('hour').addEventListener('input', function(e) {
+            const h = parseFloat(e.target.value);
+            const hrs = Math.floor(h);
+            const mins = (h % 1) * 60;
+            document.getElementById('hourVal').innerText = 
+                `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+            calculate();
+        });
+
+        function calculate() {
+            // 讀取輸入
+            const lat = parseFloat(document.getElementById('lat').value);
+            const month = parseInt(document.getElementById('month').value);
+            const hour = parseFloat(document.getElementById('hour').value);
+            
+            const A = parseFloat(document.getElementById('area').value);
+            const alpha = parseFloat(document.getElementById('alpha').value);
+            const hConv = parseFloat(document.getElementById('hConv').value);
+            const Tamb = parseFloat(document.getElementById('tAmb').value);
+            const Pint = parseFloat(document.getElementById('pInternal').value);
+
+            // 1. 計算太陽赤緯 (Solar Declination) - 簡化公式
+            const dayOfYear = [15, 45, 75, 105, 135, 165, 195, 225, 255, 285, 315, 345][month];
+            const declination = 23.45 * Math.sin((360 / 365) * (dayOfYear - 80) * Math.PI / 180);
+
+            // 2. 計算時角 (Hour Angle)
+            const hourAngle = (hour - 12) * 15;
+
+            // 3. 計算太陽高度角 (Elevation Angle)
+            const latRad = lat * Math.PI / 180;
+            const decRad = declination * Math.PI / 180;
+            const haRad = hourAngle * Math.PI / 180;
+
+            let sinElev = Math.sin(latRad) * Math.sin(decRad) + 
+                          Math.cos(latRad) * Math.cos(decRad) * Math.cos(haRad);
+            
+            let elevRad = Math.asin(sinElev);
+            let elevDeg = elevRad * 180 / Math.PI;
+
+            // 4. 計算日照強度 G (W/m²)
+            let G = 0;
+            if (elevDeg > 0) {
+                const airMass = 1 / Math.sin(elevRad);
+                G = 1367 * Math.pow(0.7, Math.pow(airMass, 0.678));
+            } else {
+                elevDeg = 0;
+                G = 0; // 夜間
+            }
+
+            // 5. 熱平衡計算
+            const Q_solar = alpha * G * A;
+            const Q_total = Pint + Q_solar;
+            const deltaT = Q_total / (hConv * A);
+            const Tsurface = Tamb + deltaT;
+
+            // 更新 UI
+            document.getElementById('resG').innerText = Math.round(G) + " W/m²";
+            document.getElementById('elevMsg').innerText = "SUN_ELEVATION: " + elevDeg.toFixed(1) + "°";
+            document.getElementById('resTemp').innerText = Tsurface.toFixed(1) + "°C";
+            document.getElementById('resQSolar').innerText = Q_solar.toFixed(1) + " W";
+            document.getElementById('resQInt').innerText = Pint.toFixed(1) + " W";
+            document.getElementById('resQTotal').innerText = Q_total.toFixed(1) + " W";
+            document.getElementById('resDeltaT').innerText = deltaT.toFixed(1) + " K";
+            document.getElementById('statusMsg').innerText = G > 0 ? "THERMAL_EXPOSURE_ACTIVE" : "NIGHT_MODE_ACTIVE";
+
+            updateAdvice(Tsurface, G, elevDeg);
+        }
+
+        function updateAdvice(temp, G, elev) {
+            const adviceDiv = document.getElementById('advice');
+            const adviceContent = document.getElementById('adviceContent');
+            adviceDiv.classList.remove('hidden');
+            
+            let html = "";
+            if (G === 0) {
+                html += "<div class='text-blue-400'>[INFO] 目前處於夜間或地平線以下。熱負載僅來自內部功耗。</div>";
+            } else {
+                html += `<div>[DATA] 偵測到日照負載。當前太陽高度角 ${elev.toFixed(1)}°，大氣衰減後強度 ${Math.round(G)} W/m²。</div>`;
+            }
+
+            if (temp > 80) {
+                html += "<div class='text-red-500'>[ALERT] 警告：表面溫度超過 80°C。</div>";
+            }
+            
+            html += "<div class='mt-2 border-t border-slate-700 pt-2 opacity-60'>";
+            html += "物理修正建議：<br>";
+            html += "- 緯度越高，冬夏溫差越明顯。<br>";
+            html += "- 若處於低緯度(回歸線內)，正午垂直照射強度極高，強烈建議使用『遮陽雙層殼』設計。";
+            html += "</div>";
+
+            adviceContent.innerHTML = html;
+        }
+
+        // 初始化
+        window.onload = calculate;
+    </script>
+</body>
+</html>
